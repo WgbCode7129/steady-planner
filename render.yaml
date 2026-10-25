@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: steady-planner
+    runtime: static
+    buildCommand: echo "No build step needed"
+    staticPublishPath: .
