@@ -6,11 +6,13 @@ A free web app for Year 1 hall residents, built as the secondary product of **St
 It runs in any phone browser. There is nothing to install and no server code.
 
 ## What it does
-- **Today**: your next chunk as an if–then plan ("IF it's Tue 4 pm in the common room → THEN I write the outline"), with Done, Move and Add reminder (Google Calendar).
-- **9:30 pm guardrail**: after the deep-work cut-off, it offers to move unfinished chunks to tomorrow instead of into your sleep.
+- **Today**: your next chunk as an if–then plan ("IF it's Tue 4 pm in the common room → THEN I write the outline"), with Done, Not today and Add reminder (Google Calendar).
+- **Off track? Re-plan**: missed chunks, or a whole week gone wrong, are re-planned in one tap: nearest deadline first, at most two chunks a day, on your free days, never past the cut-off. It then points you to the basics (a proper meal, sleep) and Flex Day.
+- **9:30 pm guardrail**: after the deep-work cut-off, it offers to move unfinished chunks to your next free day instead of into your sleep. If something is due tomorrow, it offers a capped 45-minute last push instead.
+- **Your timetable**: set your usual study time, your cut-off and the days you can't study (classes, CCA). Chunking and re-planning follow them.
 - **Radar**: deadlines per teaching week, with crunch weeks flagged.
 - **Plan**: add deadlines and split them into timed chunks with templates (essay, lab report, problem set, presentation, exam).
-- **Check-in**: a 60-second weekly check-in. Green gets a tip, amber gets a Flex Day and an opt-in buddy kopi, and red shows help lines immediately.
+- **Check-in**: a 60-second weekly check-in. Green gets a tip, amber gets a Flex Day and an opt-in buddy kopi, and red shows help lines immediately. An "Are things improving?" card compares your sleep, meals, stress and chunks done with the previous week.
 
 ## Privacy
 Everything is saved in the browser on the student's own phone (`localStorage`). Nothing is sent to a server.
