@@ -37,9 +37,11 @@ img{max-width:100%}
 *{box-sizing:border-box}
 html,body{background:var(--bg)}
 body{color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
-.app{max-width:560px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 96px}
+.app{max-width:560px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 96px}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:#1E3A8A}
-header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:#1E3A8A;color:#F6EBCF;margin:0 calc(-1*max(16px,env(safe-area-inset-left,0px))) 16px;padding:14px max(16px,env(safe-area-inset-right,0px)) 14px max(16px,env(safe-area-inset-left,0px));display:flex;align-items:center;justify-content:space-between;gap:12px}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:#1E3A8A;color:#F6EBCF;padding:14px max(16px,env(safe-area-inset-right,0px)) 14px max(16px,env(safe-area-inset-left,0px))}
+.top-in{max-width:528px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.cols{display:flex;flex-direction:column;gap:12px}
 .brand{font-family:var(--display);font-size:26px;letter-spacing:.5px;line-height:1}
 .brand small{display:block;font-family:var(--body);font-size:11px;letter-spacing:1.5px;color:#A9C98F;font-weight:700;margin-top:4px;text-transform:uppercase}
 .wk{text-align:right;font-size:12px;color:#C9D3F0}
@@ -106,18 +108,35 @@ nav.tabs button.on{color:var(--navy);background:var(--bg)}
 .save{font-size:11px;color:#C9D3F0;margin-top:3px}
 details summary{cursor:pointer;font-weight:700;color:var(--blue);font-size:13px}
 @media (prefers-reduced-motion: no-preference){.card{transition:background .2s}}
+/* Phones: 16px inputs stop iOS zooming on focus. */
+@media (max-width:599px){input,select{font-size:16px}}
+@media (hover:hover){button:hover,.btn:hover{filter:brightness(1.08)}nav.tabs button:not(.on):hover{background:var(--bg);color:var(--ink)}}
+/* Laptops: sidebar nav, wider page, two content columns. */
+@media (min-width:900px){
+  .top-in{max-width:1088px}
+  .brand{font-size:30px}
+  .app{max-width:1120px;display:grid;grid-template-columns:200px minmax(0,1fr);gap:32px;padding-block:28px 48px;align-items:start}
+  nav.tabs{position:sticky;top:calc(env(safe-area-inset-top,0px) + 96px);background:none;border:none;padding:0}
+  nav.tabs .in{display:flex;flex-direction:column;gap:4px;max-width:none}
+  nav.tabs button{flex-direction:row;justify-content:flex-start;gap:12px;font-size:14px;padding:10px 14px;min-height:44px}
+  nav.tabs button.on{background:var(--card);box-shadow:inset 3px 0 0 var(--navy)}
+  h2{font-size:34px}
+  .stack{gap:16px}
+  .cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+  .toast{bottom:28px}
+}
 </style>
 
 </head>
 <body>
+<header class="top"><div class="top-in">
+  <div class="brand">STEADY<small>Steady@Hall planner</small></div>
+  <div class="wk" id="wk"><b>Week –</b><span>loading</span><div class="save" id="saveState"></div></div>
+</div></header>
 <div class="app" id="app">
-  <header class="top">
-    <div class="brand">STEADY<small>Steady@Hall planner</small></div>
-    <div class="wk" id="wk"><b>Week –</b><span>loading</span><div class="save" id="saveState"></div></div>
-  </header>
+  <nav class="tabs" aria-label="Sections"><div class="in" id="tabs"></div></nav>
   <main id="view" aria-live="polite"></main>
 </div>
-<nav class="tabs" aria-label="Sections"><div class="in" id="tabs"></div></nav>
 <div class="toast" id="toast" hidden></div>
 
 <script>
@@ -138,6 +157,8 @@ const fmtTime=t=>{let m=mins(t),hh=Math.floor(m/60),mm=m%60,ap=hh>=12?"pm":"am";
 const uid=()=>Math.random().toString(36).slice(2,9);
 const today=()=>{const n=new Date();return new Date(n.getFullYear(),n.getMonth(),n.getDate());};
 const nowMin=()=>{const n=new Date();return n.getHours()*60+n.getMinutes();};
+// Two columns on laptops; on phones they stack, main first.
+const cols=(main,side)=>h("div",{class:"cols"},h("div",{class:"stack"},...main.filter(Boolean)),h("div",{class:"stack"},...side.filter(Boolean)));
 function toast(msg){const t=$("#toast");t.textContent=msg;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,2200);}
 
 /* ---------- templates ---------- */
@@ -227,10 +248,10 @@ function viewToday(){
   const open=sortedChunks().filter(c=>!c.done);
   const lateToday=open.filter(c=>c.date===t&&(now>=cut||now<300));
   const next=open.find(c=>c.date>t||(c.date===t&&mins(c.time)+Number(c.mins)>now))||null;
-  const els=[exampleBanner(),h("div",null,h("div",{class:"kick"},"Today"),h("h2",null,"Your next step"))];
-  if(lateToday.length){els.push(h("div",{class:"card amber"},h("div",{class:"kick"},"9:30 pm guardrail"),h("p",{style:"margin:6px 0 10px;font-weight:600"},"Deep work is closed. "+lateToday.length+" chunk"+(lateToday.length>1?"s are":" is")+" still open today."),h("div",{class:"row"},h("button",{class:"solid",onclick:()=>{lateToday.forEach(moveChunk);render();toast("Moved to tomorrow, 4 pm");}},"Move to tomorrow"),h("button",{onclick:()=>{tab="checkin";showFlex=true;render();}},"Open Flex Day"))));}
-  if(next){const dl=dlOf(next.dl);els.push(h("div",{class:"card navy"},h("div",{class:"between"},h("div",{class:"kick"},next.date===t?"Up next today":"Up next · "+fmtDate(next.date)),dl?h("span",{class:"small",style:"color:var(--on-navy-2)"},dl.mod+" · "+dl.title):null),ifThenEl(next),isLate(next)?h("p",{class:"small",style:"margin:0 0 10px;color:#F8C9C6;font-weight:700"},"⚠ Ends after your "+fmtTime(S.settings.cutoff)+" cut-off. Move it to protect your sleep."):null,h("div",{class:"row"},h("button",{class:"solid",onclick:()=>{next.done=true;save();render();toast("Nice. Chunk done.");}},"Done"),h("button",{onclick:()=>{moveChunk(next);render();toast("Moved to "+fmtDate(next.date)+", 4 pm");}},"Move"),h("a",{class:"btn",href:calLink(next),target:"_blank",rel:"noopener"},"Add reminder"))));}
-  else els.push(h("div",{class:"card"},h("p",{style:"margin:0"},"Nothing planned yet. Chunk your next deadline and your plan appears here."),h("div",{class:"row",style:"margin-top:10px"},h("button",{class:"solid",onclick:()=>{tab="plan";render();}},"Plan a deadline"))));
+  const els=[exampleBanner(),h("div",null,h("div",{class:"kick"},"Today"),h("h2",null,"Your next step"))],main=[],side=[];
+  if(lateToday.length){main.push(h("div",{class:"card amber"},h("div",{class:"kick"},"9:30 pm guardrail"),h("p",{style:"margin:6px 0 10px;font-weight:600"},"Deep work is closed. "+lateToday.length+" chunk"+(lateToday.length>1?"s are":" is")+" still open today."),h("div",{class:"row"},h("button",{class:"solid",onclick:()=>{lateToday.forEach(moveChunk);render();toast("Moved to tomorrow, 4 pm");}},"Move to tomorrow"),h("button",{onclick:()=>{tab="checkin";showFlex=true;render();}},"Open Flex Day"))));}
+  if(next){const dl=dlOf(next.dl);main.push(h("div",{class:"card navy"},h("div",{class:"between"},h("div",{class:"kick"},next.date===t?"Up next today":"Up next · "+fmtDate(next.date)),dl?h("span",{class:"small",style:"color:var(--on-navy-2)"},dl.mod+" · "+dl.title):null),ifThenEl(next),isLate(next)?h("p",{class:"small",style:"margin:0 0 10px;color:#F8C9C6;font-weight:700"},"⚠ Ends after your "+fmtTime(S.settings.cutoff)+" cut-off. Move it to protect your sleep."):null,h("div",{class:"row"},h("button",{class:"solid",onclick:()=>{next.done=true;save();render();toast("Nice. Chunk done.");}},"Done"),h("button",{onclick:()=>{moveChunk(next);render();toast("Moved to "+fmtDate(next.date)+", 4 pm");}},"Move"),h("a",{class:"btn",href:calLink(next),target:"_blank",rel:"noopener"},"Add reminder"))));}
+  else main.push(h("div",{class:"card"},h("p",{style:"margin:0"},"Nothing planned yet. Chunk your next deadline and your plan appears here."),h("div",{class:"row",style:"margin-top:10px"},h("button",{class:"solid",onclick:()=>{tab="plan";render();}},"Plan a deadline"))));
   // this week
   const wk=teachWeek(t).n,cnt=S.deadlines.filter(d=>teachWeek(d.due).n===wk).length,nx=S.deadlines.filter(d=>teachWeek(d.due).n===wk+1).length,cr=Number(S.settings.crunch);
   const tips=[];
@@ -240,30 +261,32 @@ function viewToday(){
   else if(cnt>=cr)tips.push(["Crunch week",`${cnt} deadlines this week. Use buffers, and Flex Day if it blows up.`]);
   const ci=S.checkins.find(c=>weekKey(c.date)===weekKey(t));
   if(!ci)tips.push(["Weekly check-in","60 seconds. It shapes next week’s plan."]);
-  els.push(h("div",{class:"card"},h("div",{class:"kick"},"This week"),...tips.map(([a,b])=>h("div",{style:"padding:8px 0;border-top:1px solid var(--line)"},h("b",null,a),h("div",{class:"small muted"},b))),!ci?h("div",{class:"row",style:"margin-top:8px"},h("button",{onclick:()=>{tab="checkin";render();}},"Do check-in")):null));
+  side.push(h("div",{class:"card"},h("div",{class:"kick"},"This week"),...tips.map(([a,b])=>h("div",{style:"padding:8px 0;border-top:1px solid var(--line)"},h("b",null,a),h("div",{class:"small muted"},b))),!ci?h("div",{class:"row",style:"margin-top:8px"},h("button",{onclick:()=>{tab="checkin";render();}},"Do check-in")):null));
   const doneN=S.chunks.filter(c=>c.done).length;
-  els.push(h("p",{class:"small muted",style:"text-align:center"},`${doneN} of ${S.chunks.length} chunks done this semester`));
-  return els;
+  side.push(h("p",{class:"small muted",style:"text-align:center;margin:0"},`${doneN} of ${S.chunks.length} chunks done this semester`));
+  return [...els,cols(main,side)];
 }
 
 function viewRadar(){
   const t=ymd(today()),cur=teachWeek(t).n,cr=Number(S.settings.crunch);
   const counts=Array.from({length:14},(_,i)=>S.deadlines.filter(d=>teachWeek(d.due).n===i+1).length);
   const hours=Array.from({length:14},(_,i)=>S.chunks.filter(c=>teachWeek(c.date).n===i+1).reduce((a,c)=>a+Number(c.mins),0)/60);
-  const W=520,H=210,L=26,B=30,T=14,max=Math.max(cr+1,...counts),bw=(W-L-8)/14;
+  // Draw at the card's real width so labels stay 11px on phones and laptops alike.
+  const W=Math.round(Math.max(300,Math.min(640,radarWidth()))),H=210,L=26,B=30,T=14,max=Math.max(cr+1,...counts),bw=(W-L-8)/14;
   const css=getComputedStyle(document.documentElement);
   const col=v=>css.getPropertyValue(v).trim();
   let svg=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Deadlines per teaching week"><title>Deadlines per teaching week</title>`;
   for(let v=0;v<=max;v++){const y=H-B-(H-B-T)*v/max;svg+=`<line x1="${L}" x2="${W-4}" y1="${y}" y2="${y}" stroke="${col("--line")}" stroke-width="1"/><text x="${L-8}" y="${y+4}" text-anchor="end" font-size="11" fill="${col("--muted")}" font-family="Montserrat">${v}</text>`;}
-  counts.forEach((c,i)=>{const x=L+4+i*bw,hh=(H-B-T)*c/max,y=H-B-hh,isCr=c>=cr;if(c)svg+=`<rect x="${x+3}" y="${y}" width="${bw-6}" height="${hh}" rx="3" fill="${isCr?col("--red"):col("--blue")}"/>`;if(i+1===cur)svg+=`<rect x="${x+1}" y="${T-6}" width="${bw-2}" height="${H-B-T+6}" fill="none" stroke="${col("--sage-ink")}" stroke-width="2" stroke-dasharray="4 3" rx="4"/>`;svg+=`<text x="${x+bw/2}" y="${H-B+16}" text-anchor="middle" font-size="10.5" fill="${i+1===cur?col("--ink"):col("--muted")}" font-weight="${i+1===cur?700:400}" font-family="Montserrat">${i<13?"W"+(i+1):"Fin"}</text>`;if(hours[i]>0)svg+=`<circle cx="${x+bw/2}" cy="${H-B+25}" r="2.6" fill="${col("--sage-ink")}"/>`;});
+  counts.forEach((c,i)=>{const x=L+4+i*bw,hh=(H-B-T)*c/max,y=H-B-hh,isCr=c>=cr;if(c)svg+=`<rect x="${x+3}" y="${y}" width="${bw-6}" height="${hh}" rx="3" fill="${isCr?col("--red"):col("--blue")}"/>`;if(i+1===cur)svg+=`<rect x="${x+1}" y="${T-6}" width="${bw-2}" height="${H-B-T+6}" fill="none" stroke="${col("--sage-ink")}" stroke-width="2" stroke-dasharray="4 3" rx="4"/>`;svg+=`<text x="${x+bw/2}" y="${H-B+16}" text-anchor="middle" font-size="10.5" fill="${i+1===cur?col("--ink"):col("--muted")}" font-weight="${i+1===cur?700:400}" font-family="Montserrat">${i<13?(bw<26?"":"W")+(i+1):"Fin"}</text>`;if(hours[i]>0)svg+=`<circle cx="${x+bw/2}" cy="${H-B+25}" r="2.6" fill="${col("--sage-ink")}"/>`;});
   svg+="</svg>";
   const crunchWeeks=counts.map((c,i)=>[c,i]).filter(([c,i])=>c>=cr&&i+1>=cur);
   const up=[...S.deadlines].filter(d=>d.due>=t).sort((a,b)=>a.due.localeCompare(b.due));
   return [exampleBanner(),h("div",null,h("div",{class:"kick"},"Load radar"),h("h2",null,"See the crunch coming"),h("p",{class:"sub"},"Deadlines per teaching week. Red weeks have "+cr+" or more. Dots mark weeks with study planned.")),
-    h("div",{class:"card radar",html:svg}),
-    crunchWeeks.length?h("div",{class:"card red"},h("div",{class:"kick",style:"color:var(--red)"},"Crunch ahead"),h("p",{style:"margin:6px 0 0;font-weight:600"},crunchWeeks.map(([c,i])=>(i<13?"Week "+(i+1):"Finals")+": "+c+" deadlines").join(" · ")),h("p",{class:"small",style:"margin:4px 0 0"},"Start chunking two weeks before.")):h("div",{class:"card sage"},h("b",null,"No crunch weeks ahead."),h("div",{class:"small"},"Keep chunking early to keep it that way.")),
-    h("div",{class:"card"},h("div",{class:"between"},h("div",{class:"kick"},"Coming up"),h("button",{class:"ghost",onclick:()=>{tab="plan";render();}},"+ Add")),up.length?up.map(d=>{const days=Math.round((parse(d.due)-today())/864e5);const chs=S.chunks.filter(c=>c.dl===d.id);return h("div",{class:"dl"},h("div",{style:"min-width:0"},h("b",null,d.title),h("div",{class:"small muted"},d.mod+" · "+(chs.length?chs.filter(c=>c.done).length+"/"+chs.length+" chunks done":"not chunked yet"))),h("div",{class:"d"},fmtDate(d.due),h("br"),days<=14?h("span",{class:"pill "+(days<=7?"red":"amber")},days===0?"today":days+" days"):h("span",{class:"small"},days+" days")));}):h("p",{class:"muted small"},"No deadlines yet."))];
+    cols([h("div",{class:"card radar",html:svg}),
+    crunchWeeks.length?h("div",{class:"card red"},h("div",{class:"kick",style:"color:var(--red)"},"Crunch ahead"),h("p",{style:"margin:6px 0 0;font-weight:600"},crunchWeeks.map(([c,i])=>(i<13?"Week "+(i+1):"Finals")+": "+c+" deadlines").join(" · ")),h("p",{class:"small",style:"margin:4px 0 0"},"Start chunking two weeks before.")):h("div",{class:"card sage"},h("b",null,"No crunch weeks ahead."),h("div",{class:"small"},"Keep chunking early to keep it that way."))],
+    [h("div",{class:"card"},h("div",{class:"between"},h("div",{class:"kick"},"Coming up"),h("button",{class:"ghost",onclick:()=>{tab="plan";render();}},"+ Add")),up.length?up.map(d=>{const days=Math.round((parse(d.due)-today())/864e5);const chs=S.chunks.filter(c=>c.dl===d.id);return h("div",{class:"dl"},h("div",{style:"min-width:0"},h("b",null,d.title),h("div",{class:"small muted"},d.mod+" · "+(chs.length?chs.filter(c=>c.done).length+"/"+chs.length+" chunks done":"not chunked yet"))),h("div",{class:"d"},fmtDate(d.due),h("br"),days<=14?h("span",{class:"pill "+(days<=7?"red":"amber")},days===0?"today":days+" days"):h("span",{class:"small"},days+" days")));}):h("p",{class:"muted small"},"No deadlines yet."))])];
 }
+function radarWidth(){const v=$("#view");const w=v?v.clientWidth:520;return (matchMedia("(min-width:900px)").matches?(w-16)/2:w)-34;}
 
 function viewPlan(){
   const els=[exampleBanner(),h("div",null,h("div",{class:"kick"},"Plan"),h("h2",null,"Chunk it, then pin it"),h("p",{class:"sub"},"Break each deadline into small chunks, and give each a time and place. That’s your if–then plan."))];
@@ -273,7 +296,7 @@ function viewPlan(){
     h("div",{style:"display:grid;grid-template-columns:1fr 1.6fr;gap:8px"},h("label",null,"Module",h("input",{name:"mod",id:"f-mod",placeholder:"SC1003",autocomplete:"off"})),h("label",null,"Assessment",h("input",{name:"title",id:"f-title",placeholder:"CA2 essay",autocomplete:"off"}))),
     h("div",{style:"display:grid;grid-template-columns:1fr 1fr;gap:8px"},h("label",null,"Due date",h("input",{name:"due",id:"f-due",type:"date"})),h("label",null,"Type",h("select",{name:"tpl",id:"f-tpl"},...Object.keys(TEMPLATES).map(k=>h("option",{value:k},TPL_NAMES[k]))))),
     h("div",null,h("button",{class:"solid",type:"submit"},"Add deadline")));
-  els.push(f);
+  const main=[f],side=[];
   const dls=[...S.deadlines].sort((a,b)=>a.due.localeCompare(b.due));
   for(const d of dls){
     const chs=sortedChunks().filter(c=>c.dl===d.id);
@@ -298,13 +321,13 @@ function viewPlan(){
       }
       card.append(ul,h("div",{class:"row",style:"margin-top:8px"},chunkFor!==d.id?h("button",{class:"ghost",onclick:()=>{chunkFor=d.id;render();}},"+ More chunks"):null,h("button",{class:"ghost",onclick:()=>{S.deadlines=S.deadlines.filter(x=>x.id!==d.id);S.chunks=S.chunks.filter(x=>x.dl!==d.id);save();render();toast("Deadline removed");}},"Remove deadline")));
     }
-    els.push(card);
+    side.push(card);
   }
   // settings
   const st=S.settings;
   const sW=h("input",{type:"date",id:"s-w1",value:st.w1}),sR=h("input",{type:"number",id:"s-r",min:"1",max:"20",value:st.recess}),sC=h("input",{type:"time",id:"s-c",value:st.cutoff}),sS=h("input",{type:"time",id:"s-s",value:st.sleep});
-  els.push(h("details",{class:"card"},h("summary",null,"Semester settings"),h("div",{class:"edit",style:"margin-top:10px"},h("label",null,"Monday of Week 1",sW),h("label",null,"Recess (calendar week)",sR),h("label",null,"Deep-work cut-off",sC),h("label",null,"Sleep window opens",sS),h("div",{style:"grid-column:1/-1"},h("button",{class:"solid",onclick:()=>{st.w1=sW.value||st.w1;st.recess=Number(sR.value)||st.recess;st.cutoff=sC.value||st.cutoff;st.sleep=sS.value||st.sleep;save();render();toast("Settings saved");}},"Save settings"))),h("p",{class:"small muted",style:"margin:8px 0 0"},"Defaults match NTU AY26-27 Semester 1: Week 1 starts 10 Aug, recess is calendar week 8.")));
-  return els;
+  main.push(h("details",{class:"card"},h("summary",null,"Semester settings"),h("div",{class:"edit",style:"margin-top:10px"},h("label",null,"Monday of Week 1",sW),h("label",null,"Recess (calendar week)",sR),h("label",null,"Deep-work cut-off",sC),h("label",null,"Sleep window opens",sS),h("div",{style:"grid-column:1/-1"},h("button",{class:"solid",onclick:()=>{st.w1=sW.value||st.w1;st.recess=Number(sR.value)||st.recess;st.cutoff=sC.value||st.cutoff;st.sleep=sS.value||st.sleep;save();render();toast("Settings saved");}},"Save settings"))),h("p",{class:"small muted",style:"margin:8px 0 0"},"Defaults match NTU AY26-27 Semester 1: Week 1 starts 10 Aug, recess is calendar week 8.")));
+  return [...els,cols(main,side)];
 }
 
 let showFlex=false;
@@ -328,7 +351,8 @@ function viewCheckin(){
   const Q=(key,label,opts,fmt)=>h("div",{class:"q"},h("b",null,label),h("div",{class:"seg",role:"group","aria-label":label},...opts.map(v=>h("button",{type:"button",class:draft[key]===v?"on":null,"aria-pressed":draft[key]===v?"true":"false",onclick:()=>{draft[key]=v;render();}},fmt?fmt(v):String(v)))));
   const n07=[0,1,2,3,4,5,6,7],n15=[1,2,3,4,5];
   const ready=["sleep","skipped","stress","connected","feeling"].every(k=>draft[k]!==null);
-  els.push(h("div",{class:"card stack"},
+  const main=[],side=[];
+  main.push(h("div",{class:"card stack"},
     Q("sleep","Nights with 7+ hours’ sleep",n07),
     Q("skipped","Days you skipped a meal",n07),
     Q("stress","Stress this week (1 low, 5 high)",n15),
@@ -337,11 +361,11 @@ function viewCheckin(){
     h("div",null,h("button",{class:"solid",disabled:ready?null:true,style:ready?null:"opacity:.5",onclick:()=>{if(!ready)return;const c={id:uid(),date:ymd(today()),...draft};c.tier=tierOf(c);S.checkins.push(c);lastResult=c.tier;draft={sleep:null,skipped:null,stress:null,connected:null,feeling:null};save();render();window.scrollTo(0,0);}},"Submit check-in"))));
   if(S.checkins.length){const recent=[...S.checkins].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8);
     const amberRun=recent.length>=2&&recent[0].tier!=="green"&&recent[1].tier!=="green";
-    els.push(h("div",{class:"card"},h("div",{class:"kick"},"Your last check-ins"),h("div",{class:"hist",style:"margin-top:8px"},...recent.map(c=>h("span",{class:"pill "+c.tier,title:fmtDate(c.date)},fmtDate(c.date).slice(4)))),amberRun?h("p",{class:"small",style:"margin:10px 0 0;font-weight:600"},"Two tough weeks in a row. A buddy kopi or the Wellbeing Office could help, and it’s fine to ask."):null));}
-  els.push(h("details",{class:"card",open:showFlex?true:null},h("summary",null,"Flex Day: when the week blows up"),h("div",{style:"margin-top:10px"},flexCard())));
-  els.push(h("details",{class:"card"},h("summary",null,"Need help now?"),h("div",{style:"margin-top:10px"},helpCard())));
+    side.push(h("div",{class:"card"},h("div",{class:"kick"},"Your last check-ins"),h("div",{class:"hist",style:"margin-top:8px"},...recent.map(c=>h("span",{class:"pill "+c.tier,title:fmtDate(c.date)},fmtDate(c.date).slice(4)))),amberRun?h("p",{class:"small",style:"margin:10px 0 0;font-weight:600"},"Two tough weeks in a row. A buddy kopi or the Wellbeing Office could help, and it’s fine to ask."):null));}
+  side.push(h("details",{class:"card",open:showFlex?true:null},h("summary",null,"Flex Day: when the week blows up"),h("div",{style:"margin-top:10px"},flexCard())));
+  side.push(h("details",{class:"card"},h("summary",null,"Need help now?"),h("div",{style:"margin-top:10px"},helpCard())));
   showFlex=false;
-  return els;
+  return [...els,cols(main,side)];
 }
 
 function render(){header();renderTabs();const v=tab==="today"?viewToday():tab==="radar"?viewRadar():tab==="plan"?viewPlan():viewCheckin();$("#view").replaceChildren(h("div",{class:"stack"},...v.filter(Boolean)));}
@@ -350,6 +374,7 @@ function render(){header();renderTabs();const v=tab==="today"?viewToday():tab===
 S=exampleState();store={kind:"device"};render();
 loadState().then(loaded=>{if(loaded&&loaded.v===1){S=loaded;S.settings={...DEFAULT_SETTINGS,...S.settings};S.flex=S.flex||{};}render();if(store.fresh)flush();});
 setInterval(()=>{if(tab==="today"&&!document.hidden&&!openEdit)render();},60000);
+let resizeT;window.addEventListener("resize",()=>{clearTimeout(resizeT);resizeT=setTimeout(()=>{if(tab==="radar")render();},150);});
 })();
 </script>
 
